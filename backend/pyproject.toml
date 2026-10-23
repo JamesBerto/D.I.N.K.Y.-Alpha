@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dinky-local"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "psutil>=7"
+]
+
+[project.optional-dependencies]
+voice = [
+    "numpy>=2.0",
+    "sounddevice>=0.5",
+    "faster-whisper",
+    "av>=18,<19",
+    "pyttsx3"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
