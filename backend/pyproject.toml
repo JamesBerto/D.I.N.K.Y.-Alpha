@@ -19,7 +19,7 @@ voice = [
     "sounddevice>=0.5",
     "faster-whisper",
     "av>=18,<19",
-    "pyttsx3"
+    "comtypes; sys_platform == 'win32'"
 ]
 
 [tool.setuptools.packages.find]

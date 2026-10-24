@@ -1,12 +1,14 @@
 import os
 
+import re
 from dinky.assistant import Assistant
 from dinky.ollama_client import OllamaClient
 from dinky.storage import ConversationStore
 from dinky.audit import AuditStore
 from datetime import datetime, timedelta, timezone
 from dinky.tools.router import ToolRouter
-from dinky.tools.intent import match_tool
+from dinky.tools.intent import match_tool, mentions_device_status
+from dinky.voice.wake import is_stop_request
 
 def main() -> None:
     model = os.getenv("DINKY_MODEL")
@@ -20,6 +22,7 @@ def main() -> None:
     assistant = Assistant(OllamaClient(model), store)
     voice_input = None
     wake_listener = None
+    standby = False
     voice_output = None
 
     print(f"D.I.N.K.Y. is using {model}.")
@@ -28,11 +31,50 @@ def main() -> None:
 
     while True:
         try:
-            text = input("You: ").strip()
-            spoken_request = False
-        except (KeyboardInterrupt, EOFError):
+            if standby:
+                text = wake_listener.wait_for_request().strip()
+                spoken_request = True
+
+                if not text:
+                    print("No request heard after the wake word.")
+                    continue
+
+                print(f"You said: {text}")
+            else:
+                text = input("You: ").strip()
+                spoken_request = False
+        except KeyboardInterrupt:
+            if standby:
+                standby = False
+                print("\nStopped listening.")
+                continue
+
             print("\nGoodbye!")
             break
+        except EOFError:
+            print("\nGoodbye!")
+            break
+        except Exception as error:
+            if standby:
+                standby = False
+                print(f"\nListening error: {error}")
+                continue
+            raise
+
+        if standby and is_stop_request(text):
+            standby = False
+            reply = "Stopped listening, sir."
+            print(f"D.I.N.K.Y.: {reply}")
+
+            try:
+                if voice_output is None:
+                    from dinky.voice.output import VoiceOutput
+
+                    voice_output = VoiceOutput()
+                voice_output.speak(reply)
+            except Exception as error:
+                print(f"Speech output error: {error}")
+            continue
 
         if text.lower() == "/quit":
             print("Goodbye!")
@@ -151,19 +193,11 @@ def main() -> None:
 
                     wake_listener = WakeListener()
 
-                text = wake_listener.wait_for_request()
-                if not text:
-                    print("No request heard after the wake word.")
-                    continue
-
-                print(f"You said: {text}")
-                spoken_request = True
-            except KeyboardInterrupt:
-                print("\nStopped listening.")
-                continue
+                standby = True
+                print("Standby mode is on. Say Dinky to make a request.")
             except Exception as error:
                 print(f"Listening error: {error}")
-                continue
+            continue
 
         tool_name = match_tool(text)
         if tool_name == "system.status":
@@ -212,12 +246,35 @@ def main() -> None:
                 print(f"Could not open File Explorer: {error}")
             continue
 
+        if spoken_request and (
+            mentions_device_status(text)
+            or (
+                standby
+                and (
+                    len(text.split()) < 3
+                    or text.rstrip().endswith("...")
+                )
+            )
+        ):
+            reply = "I didn't catch the full request, sir. Please say it again."
+            print(f"D.I.N.K.Y.: {reply}")
+
+            try:
+                if voice_output is None:
+                    from dinky.voice.output import VoiceOutput
+
+                    voice_output = VoiceOutput()
+                voice_output.speak(reply)
+            except Exception as error:
+                print(f"Speech output error: {error}")
+            continue
+
         if text.startswith("/"):
             print(f"Unknown command: {text}")
             continue
 
         if spoken_request and re.match(
-            r"^(?:please\s+)?(?:open|launch|start|delete|remove|run)\b",
+            r"^(?:please\s+)?(?:open|launch|start|delete|remove|run|display|show|check)\b",
             text,
             re.IGNORECASE,
         ):

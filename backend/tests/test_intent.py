@@ -1,6 +1,6 @@
 import unittest
 
-from dinky.tools.intent import match_tool
+from dinky.tools.intent import match_tool, mentions_device_status
 
 
 class IntentTests(unittest.TestCase):
@@ -33,6 +33,22 @@ class IntentTests(unittest.TestCase):
         )
     def test_misheard_explorer_does_not_open_app(self):
         self.assertIsNone(match_tool("Open file experience."))
+
+    def test_spoken_show_me_status(self):
+        self.assertEqual(
+            match_tool("show me system status."),
+            "system.status",
+        )
+    def test_display_system_status(self):
+        self.assertEqual(
+            match_tool("display my system status."),
+            "system.status",
+        )
+
+    def test_unrecognized_status_reference(self):
+        self.assertTrue(
+            mentions_device_status("Tell me my CPU usage.")
+        )
 
 if __name__ == "__main__":
     unittest.main()
