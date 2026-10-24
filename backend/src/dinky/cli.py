@@ -5,6 +5,7 @@ from dinky.ollama_client import OllamaClient
 from dinky.storage import ConversationStore
 from dinky.audit import AuditStore
 from dinky.tools.status_service import SystemStatusService
+from datetime import datetime, timedelta, timezone
 
 
 def main() -> None:
@@ -92,9 +93,19 @@ def main() -> None:
             if not events:
                 print("No tool activity recorded yet.")
             else:
+        
+                pht = timezone(timedelta(hours=8), name="PHT")
+
                 for event in events:
+                    utc_time = datetime.fromisoformat(
+                        event["created_at"]
+                    ).replace(tzinfo=timezone.utc)
+                    local_time = utc_time.astimezone(pht).strftime(
+                        "%Y-%m-%d %I:%M:%S %p %Z"
+                    )
+
                     print(
-                        f"#{event['id']} {event['created_at']} UTC | "
+                        f"#{event['id']} {local_time} | "
                         f"{event['source']} | {event['tool_name']} | "
                         f"{event['outcome']}"
                     )
