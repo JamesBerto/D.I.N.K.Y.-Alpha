@@ -93,7 +93,7 @@ def main() -> None:
             if not events:
                 print("No tool activity recorded yet.")
             else:
-        
+
                 pht = timezone(timedelta(hours=8), name="PHT")
 
                 for event in events:
@@ -173,7 +173,7 @@ def main() -> None:
             except Exception as error:
                 print(f"Could not get system status: {error}")
             continue
-    
+
         if tool_name == "app.open_explorer":
             try:
                 tool_router.execute(tool_name, "cli")
