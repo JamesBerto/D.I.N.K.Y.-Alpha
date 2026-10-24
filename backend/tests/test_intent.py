@@ -31,7 +31,8 @@ class IntentTests(unittest.TestCase):
         self.assertIsNone(
             match_tool("What does system status mean?")
         )
-
+    def test_misheard_explorer_does_not_open_app(self):
+        self.assertIsNone(match_tool("Open file experience."))
 
 if __name__ == "__main__":
     unittest.main()

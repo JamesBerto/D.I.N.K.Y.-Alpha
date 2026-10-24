@@ -1,4 +1,5 @@
 from io import BytesIO
+import time
 import wave
 
 import numpy as np
@@ -63,3 +64,15 @@ class MicrophoneRecorder:
             wav.writeframes(audio.tobytes())
 
         return recording.getvalue()
+
+    def record_for(self, seconds: float) -> bytes:
+        if seconds <= 0 or seconds > 30:
+            raise ValueError("Recording duration must be between 0 and 30 seconds.")
+
+        self.start()
+        try:
+            time.sleep(seconds)
+        finally:
+            audio = self.stop()
+
+        return audio

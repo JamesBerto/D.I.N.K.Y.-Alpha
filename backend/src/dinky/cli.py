@@ -19,10 +19,11 @@ def main() -> None:
     tool_router = ToolRouter(audit_store)
     assistant = Assistant(OllamaClient(model), store)
     voice_input = None
+    wake_listener = None
     voice_output = None
 
     print(f"D.I.N.K.Y. is using {model}.")
-    print("Commands: /voice, /status, /audit, /explorer, /new, /chats, /use NUMBER, /history, /quit")
+    print("Commands: /voice, /listen, /status, /audit, /explorer, /new, /chats, /use NUMBER, /history, /quit")
     print(f"Current chat: {store.active_conversation()}")
 
     while True:
@@ -143,6 +144,27 @@ def main() -> None:
                 print(f"Voice error: {error}")
                 continue
 
+        if text.lower() == "/listen":
+            try:
+                if wake_listener is None:
+                    from dinky.voice.listener import WakeListener
+
+                    wake_listener = WakeListener()
+
+                text = wake_listener.wait_for_request()
+                if not text:
+                    print("No request heard after the wake word.")
+                    continue
+
+                print(f"You said: {text}")
+                spoken_request = True
+            except KeyboardInterrupt:
+                print("\nStopped listening.")
+                continue
+            except Exception as error:
+                print(f"Listening error: {error}")
+                continue
+
         tool_name = match_tool(text)
         if tool_name == "system.status":
             try:
@@ -192,6 +214,24 @@ def main() -> None:
 
         if text.startswith("/"):
             print(f"Unknown command: {text}")
+            continue
+
+        if spoken_request and re.match(
+            r"^(?:please\s+)?(?:open|launch|start|delete|remove|run)\b",
+            text,
+            re.IGNORECASE,
+        ):
+            reply = "I didn't recognize that command, sir. Please try again."
+            print(f"D.I.N.K.Y.: {reply}")
+
+            try:
+                if voice_output is None:
+                    from dinky.voice.output import VoiceOutput
+
+                    voice_output = VoiceOutput()
+                voice_output.speak(reply)
+            except Exception as error:
+                print(f"Speech output error: {error}")
             continue
 
         if not text:
