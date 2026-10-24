@@ -3,6 +3,7 @@ from collections.abc import Callable
 from dinky.audit import AuditStore
 from dinky.security.policy import PolicyEngine
 from dinky.tools.system_status import get_system_status
+from dinky.tools.open_explorer import open_explorer
 
 
 class ToolRouter:
@@ -11,6 +12,7 @@ class ToolRouter:
         self.policy = PolicyEngine()
         self.handlers: dict[str, Callable[[], dict]] = {
             "system.status": get_system_status,
+            "app.open_explorer": open_explorer,
         }
 
     def execute(self, tool_name: str, source: str) -> dict:

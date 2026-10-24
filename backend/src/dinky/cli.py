@@ -4,9 +4,9 @@ from dinky.assistant import Assistant
 from dinky.ollama_client import OllamaClient
 from dinky.storage import ConversationStore
 from dinky.audit import AuditStore
-from dinky.tools.status_service import SystemStatusService
 from datetime import datetime, timedelta, timezone
-
+from dinky.tools.router import ToolRouter
+from dinky.tools.intent import match_tool
 
 def main() -> None:
     model = os.getenv("DINKY_MODEL")
@@ -16,13 +16,13 @@ def main() -> None:
 
     store = ConversationStore()
     audit_store = AuditStore(store.db_path)
-    status_service = SystemStatusService(audit_store)
+    tool_router = ToolRouter(audit_store)
     assistant = Assistant(OllamaClient(model), store)
     voice_input = None
     voice_output = None
 
     print(f"D.I.N.K.Y. is using {model}.")
-    print("Commands: /voice, /status, /audit, /new, /chats, /use NUMBER, /history, /quit")
+    print("Commands: /voice, /status, /audit, /explorer, /new, /chats, /use NUMBER, /history, /quit")
     print(f"Current chat: {store.active_conversation()}")
 
     while True:
@@ -70,7 +70,7 @@ def main() -> None:
 
         if text.lower() == "/status":
             try:
-                status = status_service.read("cli")
+                status = tool_router.execute("system.status", "cli")
             except Exception as error:
                 print(f"System status error: {error}")
                 continue
@@ -111,6 +111,16 @@ def main() -> None:
                     )
             continue
 
+        if text.lower() == "/explorer":
+            try:
+                result = tool_router.execute(
+                    "app.open_explorer", "cli"
+                )
+                print(f"Opened: {result['opened']}")
+            except Exception as error:
+                print(f"Could not open File Explorer: {error}")
+            continue
+
         if text.lower() == "/voice":
             try:
                 if voice_input is None:
@@ -132,6 +142,23 @@ def main() -> None:
             except Exception as error:
                 print(f"Voice error: {error}")
                 continue
+
+        tool_name = match_tool(text)
+        if tool_name == "app.open_explorer":
+            try:
+                tool_router.execute(tool_name, "cli")
+                reply = "Opening File Explorer, sir."
+                print(f"D.I.N.K.Y.: {reply}")
+
+                if spoken_request:
+                    if voice_output is None:
+                        from dinky.voice.output import VoiceOutput
+
+                        voice_output = VoiceOutput()
+                    voice_output.speak(reply)
+            except Exception as error:
+                print(f"Could not open File Explorer: {error}")
+            continue
 
         if text.startswith("/"):
             print(f"Unknown command: {text}")

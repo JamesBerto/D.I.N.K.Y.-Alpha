@@ -21,6 +21,7 @@ class PolicyEngine:
     # A tool must be listed here before D.I.N.K.Y. may use it.
     TOOL_LEVELS = {
         "system.status": PermissionLevel.OBSERVE,
+        "app.open_explorer": PermissionLevel.ROUTINE,
     }
 
     def check(self, tool_name: str) -> Decision:
