@@ -144,6 +144,36 @@ def main() -> None:
                 continue
 
         tool_name = match_tool(text)
+        if tool_name == "system.status":
+            try:
+                status = tool_router.execute("system.status", "cli")
+                reply = (
+                    f"CPU: {status['cpu_percent']}%. "
+                    f"Memory: {status['memory_percent']}%."
+                )
+
+                if status["battery_percent"] is not None:
+                    power = (
+                        "plugged in" if status["plugged_in"]
+                        else "on battery"
+                    )
+                    reply += (
+                        f" Battery: {status['battery_percent']}%, "
+                        f"{power}."
+                    )
+
+                print(f"D.I.N.K.Y.: {reply}")
+
+                if spoken_request:
+                    if voice_output is None:
+                        from dinky.voice.output import VoiceOutput
+
+                        voice_output = VoiceOutput()
+                    voice_output.speak(reply)
+            except Exception as error:
+                print(f"Could not get system status: {error}")
+            continue
+    
         if tool_name == "app.open_explorer":
             try:
                 tool_router.execute(tool_name, "cli")
