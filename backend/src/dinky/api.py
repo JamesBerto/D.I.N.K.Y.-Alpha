@@ -9,7 +9,8 @@ from dinky.assistant import Assistant
 from dinky.ollama_client import OllamaClient
 from dinky.storage import ConversationStore
 from dinky.voice.transcriber import SpeechTranscriber
-from dinky.tools.system_status import get_system_status
+from dinky.audit import AuditStore
+from dinky.tools.status_service import SystemStatusService
 import json
 from fastapi.responses import StreamingResponse
 
@@ -24,6 +25,8 @@ class ChatResponse(BaseModel):
 
 
 store = ConversationStore()
+audit_store = AuditStore(store.db_path)
+status_service = SystemStatusService(audit_store)
 model = os.getenv("DINKY_MODEL", "")
 assistant = Assistant(OllamaClient(model), store)
 chat_lock = Lock()
@@ -164,4 +167,18 @@ def transcribe_voice(audio: UploadFile = File(...)) -> dict[str, str]:
 
 @app.get("/v1/system/status", dependencies=[Depends(require_token)])
 def system_status() -> dict:
-    return get_system_status()
+    try:
+        return status_service.read("api")
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="System status is unavailable.",
+        ) from error
+
+
+@app.get("/v1/audit", dependencies=[Depends(require_token)])
+def list_audit_events() -> dict:
+    return {
+        "integrity_ok": audit_store.verify(),
+        "events": audit_store.recent(),
+    }

@@ -3,7 +3,8 @@ import os
 from dinky.assistant import Assistant
 from dinky.ollama_client import OllamaClient
 from dinky.storage import ConversationStore
-from dinky.tools.system_status import get_system_status
+from dinky.audit import AuditStore
+from dinky.tools.status_service import SystemStatusService
 
 
 def main() -> None:
@@ -13,12 +14,14 @@ def main() -> None:
         return
 
     store = ConversationStore()
+    audit_store = AuditStore(store.db_path)
+    status_service = SystemStatusService(audit_store)
     assistant = Assistant(OllamaClient(model), store)
     voice_input = None
     voice_output = None
 
     print(f"D.I.N.K.Y. is using {model}.")
-    print("Commands: /voice, /status, /new, /chats, /use NUMBER, /history, /quit")
+    print("Commands: /voice, /status, /audit, /new, /chats, /use NUMBER, /history, /quit")
     print(f"Current chat: {store.active_conversation()}")
 
     while True:
@@ -65,7 +68,11 @@ def main() -> None:
             continue
 
         if text.lower() == "/status":
-            status = get_system_status()
+            try:
+                status = status_service.read("cli")
+            except Exception as error:
+                print(f"System status error: {error}")
+                continue
             print(f"CPU: {status['cpu_percent']}%")
             print(f"Memory: {status['memory_percent']}%")
 
@@ -74,6 +81,23 @@ def main() -> None:
                 print(f"Battery: {status['battery_percent']}% ({power})")
             else:
                 print("Battery: unavailable")
+            continue
+
+        if text.lower() == "/audit":
+            events = audit_store.recent()
+            print(
+                "Audit chain: "
+                + ("valid" if audit_store.verify() else "CHANGED")
+            )
+            if not events:
+                print("No tool activity recorded yet.")
+            else:
+                for event in events:
+                    print(
+                        f"#{event['id']} {event['created_at']} UTC | "
+                        f"{event['source']} | {event['tool_name']} | "
+                        f"{event['outcome']}"
+                    )
             continue
 
         if text.lower() == "/voice":
