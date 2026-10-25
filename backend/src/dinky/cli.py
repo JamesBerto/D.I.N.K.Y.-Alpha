@@ -7,7 +7,11 @@ from dinky.storage import ConversationStore
 from dinky.audit import AuditStore
 from datetime import datetime, timedelta, timezone
 from dinky.tools.router import ToolRouter
-from dinky.tools.intent import match_tool, mentions_device_status
+from dinky.tools.intent import (
+    asks_device_specs,
+    match_tool,
+    mentions_device_status,
+)
 from dinky.voice.wake import is_stop_request
 
 def main() -> None:
@@ -244,6 +248,25 @@ def main() -> None:
                     voice_output.speak(reply)
             except Exception as error:
                 print(f"Could not open File Explorer: {error}")
+            continue
+
+        if asks_device_specs(text):
+            reply = (
+                "I can't verify your operating system or CPU model with "
+                "my current tools, sir. I can check live CPU usage, memory, "
+                "and battery when you ask for system status."
+            )
+            print(f"D.I.N.K.Y.: {reply}")
+
+            if spoken_request:
+                try:
+                    if voice_output is None:
+                        from dinky.voice.output import VoiceOutput
+
+                        voice_output = VoiceOutput()
+                    voice_output.speak(reply)
+                except Exception as error:
+                    print(f"Speech output error: {error}")
             continue
 
         if spoken_request and (
